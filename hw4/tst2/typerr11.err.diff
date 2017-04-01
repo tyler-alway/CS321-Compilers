@@ -1,0 +1,4 @@
+1c1
+< Checker$TypeException: n.cond for if is not of type Boolean
+---
+> Checker$TypeException: (In If) Cond exp type is not boolean: IntType

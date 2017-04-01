@@ -1,0 +1,4 @@
+1c1
+< Checker$TypeException: This op requires booleans
+---
+> Checker$TypeException: (In Binop) Operand types don't match: IntType && BoolType

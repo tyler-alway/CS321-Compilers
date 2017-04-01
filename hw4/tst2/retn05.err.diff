@@ -1,0 +1,4 @@
+1c1
+< Checker$TypeException: n.cond for while is not of type Boolean
+---
+> Checker$TypeException: (In MethodDecl) Missing return statement

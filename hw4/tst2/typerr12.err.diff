@@ -1,0 +1,4 @@
+1c1
+< Checker$TypeException: n.cond for print is not of type Boolean, Integer, or String
+---
+> Checker$TypeException: (In Print) Arg type is not int, boolean, or string: (ArrayType IntType)

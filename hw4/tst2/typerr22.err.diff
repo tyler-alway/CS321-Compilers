@@ -1,0 +1,4 @@
+1c1
+< Checker$TypeException: ObjType does not exist
+---
+> Checker$TypeException: (In Assign) lhs and rhs types don't match: (ObjType B) <- (ObjType A)

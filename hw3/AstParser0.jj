@@ -1,0 +1,31 @@
+// (For CS321 Assignment 3. Winter'15)   
+//
+// miniJava AST parser (starter version). 
+//
+
+PARSER_BEGIN(AstParser)
+import java.util.*;
+import java.io.*;
+import ast.*;
+
+public class AstParser {
+  public static void main(String [] args) throws Exception {
+    if (args.length == 1) {
+      FileInputStream stream = new FileInputStream(args[0]);
+      Ast.Program p = new AstParser(stream).Program();
+      stream.close();
+      System.out.print(p);
+    } else {
+      System.out.println("Need one file name as command-line argument.");
+    }
+  }
+}
+PARSER_END(AstParser)
+
+
+// Token definitions needed ...
+
+
+
+
+// Parsing routines needed ...

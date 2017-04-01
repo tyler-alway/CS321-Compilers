@@ -1,0 +1,4 @@
+1c1
+< java.lang.NullPointerException
+---
+> Checker$TypeException: (In Id) Can't find variable x

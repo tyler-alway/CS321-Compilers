@@ -1,0 +1,4 @@
+1c1
+< Checker$TypeException: Method does not exist
+---
+> Checker$TypeException: (In CallStmt) Can't find method f

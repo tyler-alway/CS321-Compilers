@@ -1,0 +1,4 @@
+1c1
+< Checker$TypeException: ObjType does not exist
+---
+> Checker$TypeException: (In Id) Can't find variable a

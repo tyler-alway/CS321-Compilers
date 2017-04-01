@@ -1,0 +1,254 @@
+// (For CS321 Assignment 3. Winter'15)   
+//
+// miniJava AST parser (starter version). 
+//
+
+PARSER_BEGIN(AstParser)
+import java.util.*;
+import java.io.*;
+import ast.*;
+
+public class AstParser {
+  public static void main(String [] args) throws Exception {
+    if (args.length == 1) {
+      FileInputStream stream = new FileInputStream(args[0]);
+      Ast.Program p = new AstParser(stream).Program();
+      stream.close();
+      System.out.print(p);
+    } else {
+      System.out.println("Need one file name as command-line argument.");
+    }
+  }
+}
+PARSER_END(AstParser)
+
+
+
+
+
+
+
+
+// Token definitions needed ...
+
+//<IntLit>  = [0-9]+
+//<BoolLit> = "true"|"false"
+//<StrLit>  = \"(~[\",\n])*\"  
+//<Id>      = [A-Za-z_][A-Za-z0-9_]* 
+
+SKIP : /* White space */
+{
+  " " | "\t" | "\n" | "\r" | "\f"
+}
+
+SKIP : /* Comments -- multi-line form and error detection not included */
+{
+  <"#" (~["\n","\r"])* ("\n"|"\r"|"\r\n")> 
+}
+
+TOKEN : /* Keywords */
+{
+  "class" | "Extends" | "Static" | "Public" | "void" | "IntType" | "Double" 
+| "BoolType" | "New" | "This" | "If" | "Else" | "While" | "Return" | "Main"
+| "True" | "False"  | "String" | "System" | "Out" | "Print" | "ClassDecl"
+| "MethodDecl" | "VarDecl" | "ObjType" | "ArrayType" | "Assign" | "CallStmt"
+| "Binop" | "Unop" | "Call" | "NewObj" | "Field" | "NewArray" | "ArrayElm"
+| "Param" 
+}
+
+TOKEN : /* Integer literals */
+{
+  <IntLit: (<DIGIT>)+> 
+  { try { 
+      Integer.parseInt(matchedToken.image); 
+    } catch (Exception e) { 
+      throw new TokenMgrError("Lexical error at line " + matchedToken.beginLine + 
+			      ", column " + matchedToken.beginColumn + 
+			      ". Integer overflow: " + matchedToken.image, 0);
+    } 
+  }
+}
+
+
+TOKEN : /* Boolean literals */
+{
+  <BoolLit: "true"|"false">
+}
+
+TOKEN : /* String literals */
+{
+  <StrLit: ("\"" (~["\"","\n"])* "\"")>
+}
+
+TOKEN : /* Internal tokens */
+{
+  <#DIGIT:  ["0"-"9"]>
+| <#LETTER: (["A"-"Z"]|["a"-"z"])>
+}
+
+
+TOKEN : /* Identifiers */ 
+{ 
+  <Id: <LETTER> (<LETTER>|<DIGIT>)*>
+}
+
+
+
+// Parsing routines needed ...
+
+
+
+
+
+// Program -> {ClassDecl}
+//
+Ast.Program Program(): 
+{LinkedList<Ast.ClassDecl> cd = new LinkedList(); Ast.ClassDecl cl; Ast.Program p;}
+{
+  ( cl = ClassDecl(){cd.add(cl);}  )*  <EOF> { p = new Ast.Program(cd); }
+  { return p; }
+}
+
+
+
+
+//ClassDecl  -> "ClassDecl" <Id> [<Id>] {VarDecl} {MethodDecl}
+Ast.ClassDecl ClassDecl(): 
+{Token tkn1; Token tkn2 = null; LinkedList<Ast.VarDecl> vd = new LinkedList(); Ast.VarDecl v; LinkedList<Ast.MethodDecl> ml = new LinkedList();
+ Ast.MethodDecl m; Ast.ClassDecl cd; String s = null;}
+{
+  "ClassDecl" tkn1 = <Id> [tkn2 = <Id>] (v = VarDecl() {vd.add(v);} )* (m = MethodDecl() {ml.add(m);} )* 
+  {if (tkn2 != null)
+    s = tkn2.image;
+  return new Ast.ClassDecl(tkn1.image, s, vd, ml);}
+}
+
+
+//MethodDecl -> "MethodDecl" Type <Id> "(" {Param} ")" {VarDecl} {Stmt}
+Ast.MethodDecl MethodDecl(): 
+{Ast.Type t; Token tkn; LinkedList<Ast.Param> pl = new LinkedList(); Ast.Param p; LinkedList<Ast.VarDecl> vd = new LinkedList(); Ast.VarDecl v; LinkedList<Ast.Stmt> sl = new LinkedList(); Ast.Stmt s; }
+{
+ "MethodDecl" t = Type() tkn = <Id> "(" (p = Param() {pl.add(p);} )* ")" (v = VarDecl() {vd.add(v);} )* (s = Stmt() {sl.add(s);} )*
+  {return new Ast.MethodDecl(t, tkn.image, pl, vd, sl);}
+}
+
+
+//VarDecl    -> "VarDecl" Type <Id> Exp
+Ast.VarDecl VarDecl(): 
+{Ast.Type t; Token tkn; Ast.Exp e;}
+{
+ "VarDecl" t = Type() tkn = <Id> e = Exp()
+ {return new Ast.VarDecl(t, tkn.image, e); }
+}
+
+//Param      -> "(" "Param" Type <Id> ")"
+Ast.Param Param(): 
+{Ast.Type t; Token tkn;}
+{
+ "(" "Param" t = Type() tkn = <Id> ")"
+ {return new Ast.Param(t, tkn.image);}
+}
+
+
+//Type   -> "void" 
+//       | "IntType" 
+//       | "BoolType" 
+//       | "(" "ObjType" <Id> ")"
+//       | "(" "ArrayType" Type ")"
+Ast.Type Type(): 
+{Ast.Type t;}
+{
+ "void" {return null;}
+ | "IntType" {return new Ast.IntType();}
+ | "BoolType" {return new Ast.BoolType();}
+ | "(" t = Type1() {return t;}
+ 
+}
+
+Ast.Type Type1(): 
+{Token tkn; Ast.Type t;}
+{
+  "ObjType" tkn = <Id> ")" {return new Ast.ObjType(tkn.image);}
+ |  "ArrayType" t = Type() ")" {return new Ast.ArrayType(t);}
+}
+
+  
+//Stmt   -> "{" {Stmt} "}"
+//       |  "Assign" Exp Exp
+//       |  "CallStmt" Exp <Id> "(" {Exp} ")"
+//       |  "If" Exp Stmt [ "Else" Stmt ]  
+//       |  "While" Exp Stmt
+//       |  "Print" (Exp | <StrLit>)
+//       |  "Return" Exp
+Ast.Stmt Stmt(): 
+{LinkedList<Ast.Stmt> sl = new LinkedList(); Ast.Stmt s, s1 = null; Ast.Exp e1, e2; LinkedList<Ast.Exp> el = new LinkedList(); Token tkn = null;}
+{
+ "{" (s = Stmt() {sl.add(s);} )* "}" {return new Ast.Block(sl);}
+ |  "Assign" e1 = Exp() e2 = Exp()  {return new Ast.Assign(e1, e2);}   
+ |  "CallStmt" e1 = Exp() tkn = <Id> "(" (e2 = Exp() {el.add(e2);} )* ")"  {return new Ast.CallStmt(e1, tkn.image, el);} 
+ |  "If" e1 = Exp() s = Stmt() [ LOOKAHEAD(2) "Else" s1 = Stmt() ]  {return new Ast.If(e1, s, s1);} 
+ |  "While" e1 = Exp() s = Stmt() {return new Ast.While(e1, s);} 
+ |  "Print" (e1 = Exp() {return new Ast.Print(e1);}  | tkn = <StrLit> {return new Ast.Print(new Ast.StrLit(tkn.image.substring(1, tkn.image.length()-1)));} )  
+ |  "Return" e1 = Exp()  {return new Ast.Return(e1);} 
+}
+
+
+
+
+//Exp    -> "(" ")"
+//       |  "(" "Binop" BOP Exp Exp ")"
+//       |  "(" "Unop" UOP Exp ")"
+//       |  "(" "Call" Exp <Id> "(" {Exp} ")" ")"
+//       |  "(" "NewObj" <Id> ")"
+//       |  "(" "Field" Exp <Id> ")"
+//       |  "(" "NewArray" Type <IntLit> ")"
+//       |  "(" "ArrayElm" Exp Exp ")"
+//       |  "This"
+//       |  <Id>
+//       |  <IntLit>
+//       |  <BoolLit>
+Ast.Exp Exp(): 
+{Token tkn = null; boolean tf; Ast.Exp e;}
+{
+ "(" e = Exp1() {return e;} 
+ |  "This" {return new Ast.This();} 
+ |  tkn = <Id>  {return new Ast.Id(tkn.image);}
+ |  tkn = <IntLit>  {return new Ast.IntLit(Integer.parseInt(tkn.image));}
+ |  tkn = <BoolLit>  {if(tkn.image.equals("true"))
+                        tf = true;
+                      else
+					    tf = false;}
+    {return new Ast.BoolLit(tf);}
+ }
+
+Ast.Exp Exp1(): 
+{Ast.BOP bop; Ast.Exp e1; Ast.Exp e2; LinkedList<Ast.Exp> el = new LinkedList(); Ast.UOP uop; Token tkn; Ast.Type t;}
+{
+  ")" {return null;}
+ |   "Binop" bop = BOP() e1 = Exp() e2 = Exp() ")"  {return new Ast.Binop(bop, e1, e2);}
+ |   "Unop" uop = UOP() e1 = Exp() ")"  {return new Ast.Unop(uop, e1);}
+ |   "Call" e1 = Exp() tkn = <Id> "(" (e2 = Exp() {el.add(e2);} )* ")" ")"  {return new Ast.Call(e1, tkn.image, el);}
+ |   "NewObj" tkn = <Id> ")"  {return new Ast.NewObj(tkn.image);}
+ |   "Field" e1 = Exp() tkn = <Id> ")"  {return new Ast.Field(e1, tkn.image);}
+ |   "NewArray" t = Type() tkn = <IntLit> ")"  {return new Ast.NewArray(t, Integer.parseInt(tkn.image));}
+ |   "ArrayElm" e1 = Exp() e2 = Exp() ")"  {return new Ast.ArrayElm(e1, e2);}
+}
+
+
+
+
+//BOP    -> "+"  | "-"  | "*" | "/"  | "&&" | "||"
+//       |  "==" | "!=" | "<" | "<=" | ">"  | ">=" 
+Ast.BOP BOP(): {}
+{
+  "+" {return Ast.BOP.ADD;} | "-" {return Ast.BOP.SUB;} | "*" {return Ast.BOP.MUL;} | "/" {return Ast.BOP.DIV;} 
+ | "&&" {return Ast.BOP.AND;} | "||" {return Ast.BOP.OR;} |  "==" {return Ast.BOP.EQ;} 
+ |"!=" {return Ast.BOP.NE;} | "<" {return Ast.BOP.LT;} 
+ | "<=" {return Ast.BOP.LE;} | ">" {return Ast.BOP.GT;}  | ">=" {return Ast.BOP.GE;} 
+}
+	   
+//UOP    -> "-" | "!"
+Ast.UOP UOP(): {}
+{
+  "-" {return Ast.UOP.NEG;} | "!" {return Ast.UOP.NOT;}
+}

@@ -1,0 +1,4 @@
+1c1
+< Checker$TypeException: Exp node not recognized: null
+---
+> Checker$TypeException: (In Assign) lhs and rhs types don't match: IntType <- BoolType
